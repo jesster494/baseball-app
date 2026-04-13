@@ -152,16 +152,8 @@
   #anthem-screen { position:fixed; inset:0; z-index:9999; display:none; background:#000; flex-direction:column; align-items:center; justify-content:center; }
   #anthem-screen.active { display:flex; }
   .flag-container { position:absolute; inset:0; overflow:hidden; }
-  .flag-wave { width:100%; height:100%; background: repeating-linear-gradient(180deg, #B22234 0px, #B22234 50px, #fff 50px, #fff 100px); animation: flagWave 2s ease-in-out infinite; transform-origin: left center; }
-  @keyframes flagWave {
-    0%,100% { clip-path: polygon(0 0, 100% 5%, 100% 95%, 0 100%); }
-    25% { clip-path: polygon(0 3%, 100% 0, 100% 100%, 0 97%); }
-    50% { clip-path: polygon(0 0, 100% 8%, 100% 92%, 0 100%); }
-    75% { clip-path: polygon(0 5%, 100% 0, 100% 100%, 0 95%); }
-  }
-  .flag-canton { position:absolute; top:0; left:0; width:40%; height:54%; background:#3C3B6E; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; padding:8px; gap:4px; }
-  .star { color:#fff; font-size:14px; }
-  .anthem-overlay { position:relative; z-index:1; text-align:center; padding:40px; }
+  .flag-img { width:100%; height:100%; object-fit:cover; object-position:center; }
+  .anthem-overlay { position:relative; z-index:1; text-align:center; padding:40px; background:rgba(0,0,0,0.45); border-radius:16px; }
   .anthem-title { font-family:'Bebas Neue',cursive; font-size:48px; color:#fff; text-shadow:2px 2px 20px rgba(0,0,0,0.8); margin-bottom:8px; }
   .anthem-subtitle { color:rgba(255,255,255,0.7); font-size:14px; margin-bottom:40px; }
   .anthem-close { position:absolute; top:20px; right:20px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:8px; cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; z-index:2; }
@@ -261,8 +253,7 @@
 <!-- NATIONAL ANTHEM SCREEN -->
 <div id="anthem-screen">
   <div class="flag-container">
-    <div class="flag-wave"></div>
-    <div class="flag-canton" id="flagCanton"></div>
+    <img class="flag-img" src="https://upload.wikimedia.org/wikipedia/en/a/a4/Flag_of_the_United_States.svg" alt="American Flag">
   </div>
   <div class="anthem-overlay">
     <div class="anthem-title">⚾ PLAY BALL</div>
@@ -1922,9 +1913,6 @@ function renderTeamBoxScore(game, team) {
 // NATIONAL ANTHEM
 // ============================================================
 function openAnthem() {
-  // Build stars
-  const canton = document.getElementById('flagCanton');
-  canton.innerHTML = Array(50).fill('<span class="star">★</span>').join('');
   document.getElementById('anthem-screen').classList.add('active');
 }
 
@@ -1943,14 +1931,16 @@ function playAnthem() {
     btn.textContent = '▶ Play Anthem';
     return;
   }
-  // Use a free public domain anthem
-  audio = new Audio('https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3e/Star_Spangled_Banner_instrumental.ogg/Star_Spangled_Banner_instrumental.ogg.mp3');
+  // US Navy Band - public domain recording via Wikimedia Commons
+  audio = new Audio('https://upload.wikimedia.org/wikipedia/commons/5/5a/%22The_Star-Spangled_Banner%22_performed_by_the_United_States_Navy_Band.mp3');
   audio.id = 'anthemAudio';
   document.body.appendChild(audio);
+  btn.textContent = '⏳ Loading...';
   audio.play().then(()=>{
     btn.textContent = '⏹ Stop';
-  }).catch(()=>{
-    showToast('Could not play audio. Check browser permissions.');
+  }).catch((e)=>{
+    btn.textContent = '▶ Play Anthem';
+    showToast('Tap Play again — browser needs a user gesture to play audio.');
   });
   audio.onended = () => { btn.textContent = '▶ Play Anthem'; audio.remove(); };
 }
