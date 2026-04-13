@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Baseball App</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --surface3: #252535;
+    --border: #2e2e45;
+    --accent: #e8c84a;
+    --accent2: #4a8fe8;
+    --red: #e84a4a;
+    --green: #4ae87a;
+    --text: #f0f0f8;
+    --text2: #8888aa;
+    --text3: #55556a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  h1,h2,h3 { font-family: 'Bebas Neue', cursive; letter-spacing: 1px; }
+
+  /* LOADING */
+  #loading { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:9999; flex-direction:column; gap:16px; }
+  .spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* SCREENS */
+  .screen { display:none; min-height:100vh; padding:16px; max-width:480px; margin:0 auto; }
+  .screen.active { display:block; }
+
+  /* NAV */
+  .nav { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:100; max-width:480px; margin:0 auto; }
+  .nav-btn { flex:1; padding:12px 4px; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; color:var(--text2); border:none; background:none; cursor:pointer; transition:color 0.2s; }
+  .nav-btn.active { color:var(--accent); }
+  .nav-btn svg { width:22px; height:22px; }
+
+  /* CARDS */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .card-header { font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; }
+
+  /* BUTTONS */
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 20px; border-radius:var(--radius-sm); font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all 0.2s; width:100%; font-family:'Inter',sans-serif; }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:active { opacity:0.8; transform:scale(0.98); }
+  .btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-secondary:active { opacity:0.8; }
+  .btn-danger { background:var(--red); color:#fff; }
+  .btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border); }
+  .btn-sm { padding:8px 14px; font-size:12px; width:auto; }
+  .btn-accent2 { background:var(--accent2); color:#fff; }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* INPUTS */
+  .input { width:100%; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:14px; font-family:'Inter',sans-serif; outline:none; }
+  .input:focus { border-color:var(--accent); }
+  .label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:0.5px; }
+  .form-group { margin-bottom:16px; }
+
+  /* TOP BAR */
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+  .topbar h1 { font-size:28px; color:var(--accent); }
+  .back-btn { background:none; border:none; color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:6px; font-size:14px; font-family:'Inter',sans-serif; padding:0; }
+
+  /* LEAGUE SELECT */
+  .league-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:12px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:space-between; }
+  .league-card:active { border-color:var(--accent); background:var(--surface2); }
+  .league-name { font-family:'Bebas Neue',cursive; font-size:24px; color:var(--text); }
+  .league-meta { font-size:12px; color:var(--text2); margin-top:4px; }
+
+  /* SCOREBOARD */
+  .scoreboard { background:var(--surface2); border-radius:var(--radius); overflow:hidden; margin-bottom:16px; }
+  .score-header { display:grid; grid-template-columns:80px repeat(9,1fr) 36px 36px; gap:2px; padding:8px 6px; background:var(--surface3); font-size:10px; font-weight:700; color:var(--text2); text-align:center; }
+  .score-row { display:grid; grid-template-columns:80px repeat(9,1fr) 36px 36px; gap:2px; padding:8px 6px; font-size:11px; text-align:center; border-top:1px solid var(--border); align-items:center; }
+  .score-team { text-align:left; font-weight:700; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .score-cell { color:var(--text2); }
+  .score-cell.current { color:var(--accent); font-weight:700; }
+  .score-total { font-weight:700; color:var(--text); font-size:13px; }
+
+  /* BASES */
+  .diamond { position:relative; width:80px; height:80px; margin:0 auto; }
+  .base { position:absolute; width:18px; height:18px; border:2px solid var(--border); transform:rotate(45deg); background:var(--surface3); transition:background 0.2s, border-color 0.2s; }
+  .base.occupied { background:var(--accent); border-color:var(--accent); }
+  .base-second { top:0; left:50%; transform:translateX(-50%) rotate(45deg); }
+  .base-third { bottom:20px; left:4px; }
+  .base-first { bottom:20px; right:4px; }
+  .base-home { bottom:0; left:50%; transform:translateX(-50%) rotate(45deg); background:var(--surface3); border-color:var(--text3); }
+
+  /* AT BAT BUTTONS */
+  .at-bat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .ab-btn { padding:14px 8px; border-radius:var(--radius-sm); border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-weight:700; cursor:pointer; transition:all 0.15s; font-family:'Bebas Neue',cursive; letter-spacing:1px; font-size:16px; }
+  .ab-btn:active { transform:scale(0.96); }
+  .ab-btn.hit { border-color:var(--green); color:var(--green); }
+  .ab-btn.out { border-color:var(--red); color:var(--red); }
+  .ab-btn.hr { border-color:var(--accent); color:var(--accent); background:rgba(232,200,74,0.1); }
+
+  /* COUNT / OUTS */
+  .outs-display { display:flex; gap:8px; align-items:center; }
+  .out-dot { width:14px; height:14px; border-radius:50%; border:2px solid var(--border); background:var(--surface3); transition:background 0.2s; }
+  .out-dot.active { background:var(--red); border-color:var(--red); }
+
+  /* BATTER INFO */
+  .batter-card { background:var(--surface2); border-radius:var(--radius); padding:16px; margin-bottom:12px; border-left:4px solid var(--accent); }
+  .batter-name { font-family:'Bebas Neue',cursive; font-size:28px; color:var(--accent); }
+  .batter-meta { font-size:12px; color:var(--text2); margin-top:2px; }
+
+  /* STATS TABLE */
+  .stats-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .stats-table th { padding:8px 6px; text-align:center; color:var(--text2); font-size:10px; font-weight:700; text-transform:uppercase; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .stats-table td { padding:8px 6px; text-align:center; border-bottom:1px solid var(--border); color:var(--text); }
+  .stats-table td:first-child { text-align:left; font-weight:600; }
+  .stats-table tr:last-child td { border-bottom:none; }
+  .stats-table .highlight { color:var(--accent); font-weight:700; }
+
+  /* PLAYER AVATAR */
+  .avatar { width:48px; height:48px; border-radius:50%; background:var(--surface3); border:2px solid var(--border); object-fit:cover; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',cursive; font-size:20px; color:var(--text2); overflow:hidden; flex-shrink:0; }
+  .avatar img { width:100%; height:100%; object-fit:cover; }
+  .avatar-lg { width:80px; height:80px; font-size:32px; }
+
+  /* PLAYER ROW */
+  .player-row { display:flex; align-items:center; gap:12px; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:8px; cursor:pointer; transition:border-color 0.2s; }
+  .player-row:active { border-color:var(--accent); }
+  .player-info { flex:1; }
+  .player-name-text { font-weight:600; font-size:15px; }
+  .player-stats-preview { font-size:11px; color:var(--text2); margin-top:2px; }
+
+  /* DRAFT */
+  .draft-pick { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:6px; border:1px solid var(--border); background:var(--surface2); cursor:pointer; transition:all 0.2s; }
+  .draft-pick:active { border-color:var(--accent); }
+  .draft-pick.picked-a { border-color:var(--accent); background:rgba(232,200,74,0.08); }
+  .draft-pick.picked-b { border-color:var(--accent2); background:rgba(74,143,232,0.08); }
+  .pick-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+
+  /* INNINGS TABS */
+  .inning-indicator { display:flex; align-items:center; gap:8px; padding:10px 16px; background:var(--surface2); border-radius:var(--radius); margin-bottom:12px; }
+  .inning-badge { font-family:'Bebas Neue',cursive; font-size:20px; color:var(--accent); }
+  .half-badge { font-size:11px; color:var(--text2); background:var(--surface3); padding:3px 8px; border-radius:4px; }
+
+  /* NATIONAL ANTHEM */
+  #anthem-screen { position:fixed; inset:0; z-index:9999; display:none; background:#000; flex-direction:column; align-items:center; justify-content:center; }
+  #anthem-screen.active { display:flex; }
+  .flag-container { position:absolute; inset:0; overflow:hidden; }
+  .flag-wave { width:100%; height:100%; background: repeating-linear-gradient(180deg, #B22234 0px, #B22234 50px, #fff 50px, #fff 100px); animation: flagWave 2s ease-in-out infinite; transform-origin: left center; }
+  @keyframes flagWave {
+    0%,100% { clip-path: polygon(0 0, 100% 5%, 100% 95%, 0 100%); }
+    25% { clip-path: polygon(0 3%, 100% 0, 100% 100%, 0 97%); }
+    50% { clip-path: polygon(0 0, 100% 8%, 100% 92%, 0 100%); }
+    75% { clip-path: polygon(0 5%, 100% 0, 100% 100%, 0 95%); }
+  }
+  .flag-canton { position:absolute; top:0; left:0; width:40%; height:54%; background:#3C3B6E; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; padding:8px; gap:4px; }
+  .star { color:#fff; font-size:14px; }
+  .anthem-overlay { position:relative; z-index:1; text-align:center; padding:40px; }
+  .anthem-title { font-family:'Bebas Neue',cursive; font-size:48px; color:#fff; text-shadow:2px 2px 20px rgba(0,0,0,0.8); margin-bottom:8px; }
+  .anthem-subtitle { color:rgba(255,255,255,0.7); font-size:14px; margin-bottom:40px; }
+  .anthem-close { position:absolute; top:20px; right:20px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.3); color:#fff; padding:8px 16px; border-radius:8px; cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; z-index:2; }
+
+  /* BOX SCORE */
+  .box-score-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .innings-row { display:flex; }
+
+  /* GAME HISTORY */
+  .game-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:10px; cursor:pointer; }
+  .game-item:active { border-color:var(--accent2); }
+  .game-score-display { font-family:'Bebas Neue',cursive; font-size:22px; }
+  .game-date { font-size:11px; color:var(--text2); margin-top:4px; }
+
+  /* TABS */
+  .tabs { display:flex; gap:4px; background:var(--surface2); border-radius:var(--radius-sm); padding:4px; margin-bottom:16px; }
+  .tab { flex:1; padding:8px; text-align:center; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer; color:var(--text2); border:none; background:none; font-family:'Inter',sans-serif; transition:all 0.2s; }
+  .tab.active { background:var(--surface); color:var(--text); }
+
+  /* TOAST */
+  .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--surface3); border:1px solid var(--border); color:var(--text); padding:10px 20px; border-radius:8px; font-size:13px; z-index:9998; opacity:0; transition:opacity 0.3s; pointer-events:none; white-space:nowrap; }
+  .toast.show { opacity:1; }
+
+  /* MODAL */
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500; display:none; align-items:flex-end; justify-content:center; }
+  .modal-bg.active { display:flex; }
+  .modal { background:var(--surface); border-radius:var(--radius) var(--radius) 0 0; padding:24px; width:100%; max-width:480px; max-height:80vh; overflow-y:auto; }
+  .modal-title { font-family:'Bebas Neue',cursive; font-size:24px; margin-bottom:16px; }
+
+  /* MISC */
+  .divider { height:1px; background:var(--border); margin:16px 0; }
+  .chip { display:inline-flex; align-items:center; padding:4px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; font-size:11px; font-weight:600; color:var(--text2); }
+  .chip.accent { border-color:var(--accent); color:var(--accent); background:rgba(232,200,74,0.1); }
+  .chip.blue { border-color:var(--accent2); color:var(--accent2); background:rgba(74,143,232,0.1); }
+  .empty-state { text-align:center; padding:40px 20px; color:var(--text2); }
+  .empty-state h3 { font-size:20px; margin-bottom:8px; color:var(--text3); }
+  .section-title { font-family:'Bebas Neue',cursive; font-size:22px; color:var(--text); margin-bottom:12px; }
+  .pb-nav { padding-bottom:80px; }
+  .flex-between { display:flex; align-items:center; justify-content:space-between; }
+  .flex-gap { display:flex; align-items:center; gap:8px; }
+  .text-accent { color:var(--accent); }
+  .text-green { color:var(--green); }
+  .text-red { color:var(--red); }
+  .text-sm { font-size:12px; color:var(--text2); }
+  .mt-8 { margin-top:8px; }
+  .mt-16 { margin-top:16px; }
+  .mb-8 { margin-bottom:8px; }
+  select.input { appearance:none; }
+
+  /* RPS */
+  .rps-btn { font-size:48px; padding:20px; border:2px solid var(--border); border-radius:var(--radius); background:var(--surface2); cursor:pointer; transition:all 0.2s; width:100%; }
+  .rps-btn:active { border-color:var(--accent); transform:scale(0.95); }
+  .rps-result { font-family:'Bebas Neue',cursive; font-size:32px; text-align:center; padding:20px; }
+
+  /* PHOTO UPLOAD */
+  .photo-upload { width:80px; height:80px; border-radius:50%; border:2px dashed var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--surface2); overflow:hidden; position:relative; flex-shrink:0; }
+  .photo-upload img { width:100%; height:100%; object-fit:cover; }
+  .photo-upload input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+
+  /* BATTING ORDER */
+  .order-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:6px; border:1px solid var(--border); }
+  .order-num { width:28px; height:28px; border-radius:50%; background:var(--surface3); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--text2); flex-shrink:0; }
+  .order-num.batting { background:var(--accent); color:#000; }
+  .order-up-down { display:flex; flex-direction:column; gap:2px; }
+  .order-up-down button { background:none; border:1px solid var(--border); border-radius:4px; color:var(--text2); cursor:pointer; width:26px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+
+  /* STEAL MODAL */
+  .steal-player-btn { display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); cursor:pointer; margin-bottom:8px; width:100%; text-align:left; }
+  .steal-player-btn:active { border-color:var(--accent); }
+
+  /* UNDO STACK */
+  .undo-item { padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+  .undo-item:last-child { border-bottom:none; }
+
+  /* PROFILE */
+  .profile-header { display:flex; align-items:center; gap:16px; margin-bottom:20px; }
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; }
+  .stat-box { background:var(--surface2); border-radius:var(--radius-sm); padding:12px; text-align:center; }
+  .stat-val { font-family:'Bebas Neue',cursive; font-size:26px; color:var(--accent); }
+  .stat-lbl { font-size:10px; color:var(--text2); text-transform:uppercase; margin-top:2px; }
+
+  /* TOGGLE */
+  .toggle-wrap { display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:8px; }
+  .toggle { position:relative; width:44px; height:24px; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; inset:0; background:var(--surface3); border-radius:12px; transition:0.3s; cursor:pointer; }
+  .toggle-slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:0.3s; }
+  .toggle input:checked + .toggle-slider { background:var(--accent); }
+  .toggle input:checked + .toggle-slider:before { transform:translateX(20px); }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><p style="color:var(--text2);font-size:14px;">Loading...</p></div>
+<div class="toast" id="toast"></div>
+
+<!-- NATIONAL ANTHEM SCREEN -->
+<div id="anthem-screen">
+  <div class="flag-container">
+    <div class="flag-wave"></div>
+    <div class="flag-canton" id="flagCanton"></div>
+  </div>
+  <div class="anthem-overlay">
+    <div class="anthem-title">⚾ PLAY BALL</div>
+    <div class="anthem-subtitle">The Star-Spangled Banner</div>
+    <button class="btn btn-secondary" style="width:auto;margin:0 auto;" id="playAnthemBtn" onclick="playAnthem()">▶ Play Anthem</button>
+  </div>
+  <button class="anthem-close" onclick="closeAnthem()">✕ Close</button>
+</div>
+
+<!-- SCREEN: LEAGUE SELECT -->
+<div class="screen active" id="screen-leagues">
+  <div style="padding-top:20px;">
+    <div class="flex-between mb-8">
+      <h1 style="font-size:36px;color:var(--accent);">⚾ BASEBALL</h1>
+      <button class="btn btn-sm btn-ghost" onclick="openAnthem()" style="width:auto;">🎵 Anthem</button>
+    </div>
+    <p class="text-sm mb-8" style="margin-bottom:20px;">Select a league to get started</p>
+    <div id="leagueList"></div>
+    <button class="btn btn-primary mt-16" onclick="showScreen('screen-create-league')">+ Create League</button>
+  </div>
+</div>
+
+<!-- SCREEN: CREATE LEAGUE -->
+<div class="screen" id="screen-create-league">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-leagues')">← Back</button>
+    <h1>New League</h1>
+    <div></div>
+  </div>
+  <div class="form-group">
+    <label class="label">League Name</label>
+    <input class="input" id="newLeagueName" placeholder="e.g. High School Friends" maxlength="40">
+  </div>
+  <button class="btn btn-primary" onclick="createLeague()">Create League</button>
+</div>
+
+<!-- SCREEN: LEAGUE HOME -->
+<div class="screen pb-nav" id="screen-league-home">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-leagues')">← Leagues</button>
+    <h1 id="leagueHomeTitle">League</h1>
+    <button class="btn btn-sm btn-ghost" style="width:auto;" onclick="openAnthem()">🎵</button>
+  </div>
+  <div id="leagueHomeContent"></div>
+</div>
+
+<!-- SCREEN: PLAYERS -->
+<div class="screen pb-nav" id="screen-players">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-league-home')">← Back</button>
+    <h1>Players</h1>
+    <button class="btn btn-sm btn-primary" style="width:auto;" onclick="showAddPlayer()">+ Add</button>
+  </div>
+  <div id="playersList"></div>
+</div>
+
+<!-- SCREEN: PLAYER PROFILE -->
+<div class="screen pb-nav" id="screen-player-profile">
+  <div class="topbar">
+    <button class="back-btn" id="profileBackBtn" onclick="showScreen('screen-players')">← Back</button>
+    <h1>Profile</h1>
+    <div></div>
+  </div>
+  <div id="playerProfileContent"></div>
+</div>
+
+<!-- SCREEN: GAME SETUP -->
+<div class="screen pb-nav" id="screen-game-setup">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-league-home')">← Back</button>
+    <h1>New Game</h1>
+    <div></div>
+  </div>
+  <div id="gameSetupContent"></div>
+</div>
+
+<!-- SCREEN: LIVE GAME -->
+<div class="screen pb-nav" id="screen-live-game">
+  <div id="liveGameContent"></div>
+</div>
+
+<!-- SCREEN: GAME HISTORY -->
+<div class="screen pb-nav" id="screen-history">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-league-home')">← Back</button>
+    <h1>Game History</h1>
+    <div></div>
+  </div>
+  <div id="historyContent"></div>
+</div>
+
+<!-- SCREEN: BOX SCORE -->
+<div class="screen pb-nav" id="screen-boxscore">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('screen-history')">← Back</button>
+    <h1>Box Score</h1>
+    <div></div>
+  </div>
+  <div id="boxscoreContent"></div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-bg" id="modal-add-player">
+  <div class="modal">
+    <div class="modal-title">Add Player</div>
+    <div class="form-group" style="display:flex;align-items:center;gap:16px;">
+      <div class="photo-upload" id="photoUploadPreview">
+        <span style="font-size:24px;">📷</span>
+        <input type="file" accept="image/*" id="playerPhotoInput" onchange="previewPhoto(this)">
+      </div>
+      <div style="flex:1;">
+        <label class="label">Player Name</label>
+        <input class="input" id="newPlayerName" placeholder="Enter name" maxlength="30">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-player')">Cancel</button>
+      <button class="btn btn-primary" onclick="addPlayer()">Add Player</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-steal">
+  <div class="modal">
+    <div class="modal-title" id="stealModalTitle">Steal Attempt</div>
+    <p class="text-sm" style="margin-bottom:16px;">Who is the catcher?</p>
+    <div id="stealCatcherList"></div>
+    <button class="btn btn-ghost mt-16" onclick="closeModal('modal-steal')">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-steal-result">
+  <div class="modal">
+    <div class="modal-title" id="stealResultTitle">Steal Result</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+      <button class="btn btn-secondary" style="border-color:var(--green);color:var(--green);" onclick="resolveSteal(true)">✓ Safe — Stolen Base</button>
+      <button class="btn btn-secondary" style="border-color:var(--red);color:var(--red);" onclick="resolveSteal(false)">✗ Out — Caught Stealing</button>
+    </div>
+    <button class="btn btn-ghost mt-16" onclick="closeModal('modal-steal-result')">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-mvp">
+  <div class="modal">
+    <div class="modal-title">Select Game MVP</div>
+    <p class="text-sm" style="margin-bottom:16px;">Who gets the MVP award?</p>
+    <div id="mvpPlayerList"></div>
+    <button class="btn btn-ghost mt-16" onclick="closeModal('modal-mvp')">Skip</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-undo">
+  <div class="modal">
+    <div class="modal-title">Undo History</div>
+    <p class="text-sm" style="margin-bottom:12px;">Select an action to revert to that point</p>
+    <div id="undoList" style="max-height:50vh;overflow-y:auto;"></div>
+    <button class="btn btn-ghost mt-16" onclick="closeModal('modal-undo')">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-rps">
+  <div class="modal">
+    <div class="modal-title" id="rpsTitle">Rock Paper Scissors</div>
+    <div id="rpsContent"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-batting-order">
+  <div class="modal">
+    <div class="modal-title" id="battingOrderTitle">Set Batting Order</div>
+    <p class="text-sm mb-8">Drag to reorder or use arrows</p>
+    <div id="battingOrderList"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="randomizeBattingOrder()">🔀 Randomize</button>
+      <button class="btn btn-primary" onclick="saveBattingOrder()">Save Order</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SUPABASE INIT
+// ============================================================
+const SUPABASE_URL = 'https://izxcwtvrqqadlusikwbh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6eGN3dHZycXFhZGx1c2lrd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNDIxNjEsImV4cCI6MjA5MTYxODE2MX0.LxMUFSyg8WuCHki8So9EQ_k0cBeL9IXjgMk1oYl7UrA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// STATE
+// ============================================================
+let currentLeague = null;
+let currentGame = null;
+let gameState = null;
+let allPlayers = [];
+let pendingSteal = null;
+let pendingStealCatcher = null;
+let editingBattingTeam = null;
+let gameSubscription = null;
+let photoDataUrl = null;
+let currentProfilePlayer = null;
+let profileFromGame = false;
+
+// ============================================================
+// DB SETUP
+// ============================================================
+async function initDB() {
+  // Create tables if they don't exist via RPC or just try inserts
+  // We'll use Supabase's auto-created tables approach
+  await ensureTables();
+  hideLoading();
+  loadLeagues();
+}
+
+async function ensureTables() {
+  // Try to query each table; if it fails we show a setup message
+  try {
+    await sb.from('leagues').select('id').limit(1);
+  } catch(e) {
+    console.log('Tables may need creation');
+  }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function showToast(msg, duration=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// ============================================================
+// LEAGUES
+// ============================================================
+async function loadLeagues() {
+  const { data } = await sb.from('leagues').select('*').order('created_at', {ascending:false});
+  const list = document.getElementById('leagueList');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty-state"><h3>No Leagues Yet</h3><p>Create your first league to get started</p></div>';
+    return;
+  }
+  list.innerHTML = data.map(l => `
+    <div class="league-card" onclick="selectLeague(${JSON.stringify(l).replace(/"/g,'&quot;')})">
+      <div>
+        <div class="league-name">${l.name}</div>
+        <div class="league-meta">Tap to enter</div>
+      </div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+  `).join('');
+}
+
+async function createLeague() {
+  const name = document.getElementById('newLeagueName').value.trim();
+  if (!name) { showToast('Enter a league name'); return; }
+  const { data, error } = await sb.from('leagues').insert({ name }).select().single();
+  if (error) { showToast('Error: ' + error.message); return; }
+  showToast('League created!');
+  document.getElementById('newLeagueName').value = '';
+  showScreen('screen-leagues');
+  loadLeagues();
+}
+
+function selectLeague(league) {
+  currentLeague = league;
+  document.getElementById('leagueHomeTitle').textContent = league.name;
+  loadLeaguePlayers();
+  renderLeagueHome();
+  showScreen('screen-league-home');
+}
+
+// ============================================================
+// LEAGUE HOME
+// ============================================================
+function renderLeagueHome() {
+  document.getElementById('leagueHomeContent').innerHTML = `
+    <div class="card" style="cursor:pointer;" onclick="showScreen('screen-game-setup')">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:32px;">⚾</div>
+        <div>
+          <div style="font-family:'Bebas Neue',cursive;font-size:22px;">New Game</div>
+          <div class="text-sm">Start a new game in ${currentLeague.name}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="cursor:pointer;" onclick="showScreen('screen-players');renderPlayersList()">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:32px;">👥</div>
+        <div>
+          <div style="font-family:'Bebas Neue',cursive;font-size:22px;">Players</div>
+          <div class="text-sm">Manage roster & view profiles</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="cursor:pointer;" onclick="showScreen('screen-history');loadHistory()">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:32px;">📊</div>
+        <div>
+          <div style="font-family:'Bebas Neue',cursive;font-size:22px;">Game History</div>
+          <div class="text-sm">Box scores & past results</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// PLAYERS
+// ============================================================
+async function loadLeaguePlayers() {
+  const { data } = await sb.from('players').select('*').eq('league_id', currentLeague.id).order('name');
+  allPlayers = data || [];
+}
+
+async function renderPlayersList() {
+  await loadLeaguePlayers();
+  const list = document.getElementById('playersList');
+  if (allPlayers.length === 0) {
+    list.innerHTML = '<div class="empty-state"><h3>No Players Yet</h3><p>Add players to get started</p></div>';
+    return;
+  }
+  list.innerHTML = allPlayers.map(p => {
+    const stats = p.stats || {};
+    const ab = stats.ab || 0;
+    const h = stats.h || 0;
+    const avg = ab > 0 ? (h/ab).toFixed(3).replace(/^0/,'') : '.000';
+    return `
+      <div class="player-row" onclick="viewPlayerProfile('${p.id}', false)">
+        <div class="avatar">${p.photo_url ? `<img src="${p.photo_url}">` : initials(p.name)}</div>
+        <div class="player-info">
+          <div class="player-name-text">${p.name}</div>
+          <div class="player-stats-preview">AVG ${avg} · ${stats.hr||0} HR · ${stats.mvp||0} MVP</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    `;
+  }).join('');
+}
+
+function showAddPlayer() {
+  photoDataUrl = null;
+  document.getElementById('newPlayerName').value = '';
+  document.getElementById('photoUploadPreview').innerHTML = '<span style="font-size:24px;">📷</span><input type="file" accept="image/*" id="playerPhotoInput" onchange="previewPhoto(this)">';
+  openModal('modal-add-player');
+}
+
+function previewPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoDataUrl = e.target.result;
+    document.getElementById('photoUploadPreview').innerHTML = `<img src="${photoDataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><input type="file" accept="image/*" id="playerPhotoInput" onchange="previewPhoto(this)">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function addPlayer() {
+  const name = document.getElementById('newPlayerName').value.trim();
+  if (!name) { showToast('Enter a player name'); return; }
+  const { error } = await sb.from('players').insert({
+    league_id: currentLeague.id,
+    name,
+    photo_url: photoDataUrl || null,
+    stats: {},
+    postsesh_stats: {}
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal('modal-add-player');
+  showToast(`${name} added!`);
+  await loadLeaguePlayers();
+  renderPlayersList();
+}
+
+function initials(name) {
+  return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+async function viewPlayerProfile(playerId, fromGame) {
+  profileFromGame = fromGame;
+  const player = allPlayers.find(p => p.id === playerId) || (await sb.from('players').select('*').eq('id', playerId).single()).data;
+  if (!player) return;
+  currentProfilePlayer = player;
+  document.getElementById('profileBackBtn').onclick = () => showScreen(fromGame ? 'screen-live-game' : 'screen-players');
+  renderProfile(player);
+  showScreen('screen-player-profile');
+}
+
+function renderProfile(player) {
+  const stats = player.stats || {};
+  const ps = player.postsesh_stats || {};
+  const ab = stats.ab||0, h = stats.h||0, tb = (stats.singles||0) + 2*(stats.doubles||0) + 3*(stats.triples||0) + 4*(stats.hr||0);
+  const avg = ab>0?(h/ab).toFixed(3).replace(/^0/,''):'.000';
+  const slg = ab>0?(tb/ab).toFixed(3).replace(/^0/,''):'.000';
+  const psAb = ps.ab||0, psH = ps.h||0, psTb = (ps.singles||0)+2*(ps.doubles||0)+3*(ps.triples||0)+4*(ps.hr||0);
+  const psAvg = psAb>0?(psH/psAb).toFixed(3).replace(/^0/,''):'.000';
+  const psSlg = psAb>0?(psTb/psAb).toFixed(3).replace(/^0/,''):'.000';
+  const cAtt = (stats.cs_caught||0)+(stats.sba||0);
+  const csPct = cAtt>0?Math.round((stats.cs_caught||0)/cAtt*100)+'%':'N/A';
+
+  document.getElementById('playerProfileContent').innerHTML = `
+    <div class="profile-header">
+      <div class="avatar avatar-lg">${player.photo_url?`<img src="${player.photo_url}">`:initials(player.name)}</div>
+      <div>
+        <div style="font-family:'Bebas Neue',cursive;font-size:32px;">${player.name}</div>
+        <div class="text-sm">${currentLeague.name}</div>
+        ${stats.mvp>0?`<div class="chip accent" style="margin-top:6px;">🏆 ${stats.mvp} MVP</div>`:''}
+      </div>
+    </div>
+
+    <div class="tabs" id="profileTabs">
+      <button class="tab active" onclick="switchProfileTab('full')">Full Season</button>
+      <button class="tab" onclick="switchProfileTab('postsesh')">Post-Sesh</button>
+      <button class="tab" onclick="switchProfileTab('catcher')">Catcher</button>
+    </div>
+
+    <div id="profile-tab-full">
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val">${avg}</div><div class="stat-lbl">AVG</div></div>
+        <div class="stat-box"><div class="stat-val">${slg}</div><div class="stat-lbl">SLG</div></div>
+        <div class="stat-box"><div class="stat-val">${stats.gp||0}</div><div class="stat-lbl">GP</div></div>
+      </div>
+      <div class="card">
+        <table class="stats-table">
+          <tr><th>AB</th><th>R</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>RBI</th></tr>
+          <tr>
+            <td>${ab}</td><td>${stats.runs||0}</td><td>${h}</td>
+            <td>${stats.singles||0}</td><td>${stats.doubles||0}</td><td>${stats.triples||0}</td>
+            <td class="highlight">${stats.hr||0}</td><td>${stats.rbi||0}</td>
+          </tr>
+          <tr><th>SB</th><th>CS</th><th>K</th><th>FO</th><th>QAB</th><th>MVP</th><th></th><th></th></tr>
+          <tr>
+            <td>${stats.sb||0}</td><td>${stats.cs||0}</td><td>${stats.k||0}</td>
+            <td>${stats.fo||0}</td><td>${stats.qab||0}</td><td class="highlight">${stats.mvp||0}</td>
+            <td></td><td></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div id="profile-tab-postsesh" style="display:none;">
+      <div style="background:rgba(74,143,232,0.1);border:1px solid var(--accent2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--accent2);">
+        📍 Stats from Bottom of 7th through end of game
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val">${psAvg}</div><div class="stat-lbl">AVG</div></div>
+        <div class="stat-box"><div class="stat-val">${psSlg}</div><div class="stat-lbl">SLG</div></div>
+        <div class="stat-box"><div class="stat-val">${ps.gp||0}</div><div class="stat-lbl">GP</div></div>
+      </div>
+      <div class="card">
+        <table class="stats-table">
+          <tr><th>AB</th><th>R</th><th>H</th><th>1B</th><th>2B</th><th>3B</th><th>HR</th><th>RBI</th></tr>
+          <tr>
+            <td>${psAb}</td><td>${ps.runs||0}</td><td>${psH}</td>
+            <td>${ps.singles||0}</td><td>${ps.doubles||0}</td><td>${ps.triples||0}</td>
+            <td class="highlight">${ps.hr||0}</td><td>${ps.rbi||0}</td>
+          </tr>
+          <tr><th>SB</th><th>CS</th><th>K</th><th>FO</th><th>QAB</th><th></th><th></th><th></th></tr>
+          <tr><td>${ps.sb||0}</td><td>${ps.cs||0}</td><td>${ps.k||0}</td><td>${ps.fo||0}</td><td>${ps.qab||0}</td><td></td><td></td><td></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div id="profile-tab-catcher" style="display:none;">
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val">${stats.sba||0}</div><div class="stat-lbl">SB Allowed</div></div>
+        <div class="stat-box"><div class="stat-val">${stats.cs_caught||0}</div><div class="stat-lbl">CS Made</div></div>
+        <div class="stat-box"><div class="stat-val">${csPct}</div><div class="stat-lbl">CS%</div></div>
+      </div>
+    </div>
+  `;
+}
+
+function switchProfileTab(tab) {
+  document.querySelectorAll('#profileTabs .tab').forEach((t,i) => {
+    t.classList.toggle('active', ['full','postsesh','catcher'][i]===tab);
+  });
+  document.getElementById('profile-tab-full').style.display = tab==='full'?'':'none';
+  document.getElementById('profile-tab-postsesh').style.display = tab==='postsesh'?'':'none';
+  document.getElementById('profile-tab-catcher').style.display = tab==='catcher'?'':'none';
+}
+
+// ============================================================
+// GAME SETUP
+// ============================================================
+let setupStep = 0;
+let setupData = {
+  draftType: null, // 'live' or 'manual'
+  captainMethod: null, // 'random' or 'manual'
+  rpsMethod: null,
+  teamA: { captain: null, players: [], battingOrder: [], batFirst: null },
+  teamB: { captain: null, players: [], battingOrder: [], batFirst: null },
+  allPicked: [],
+  draftOrder: [], // array of 'A' or 'B'
+  currentDraftPick: 0,
+  rpsWinner: null,
+  rpsChoice: null // 'bat' or 'draft'
+};
+
+function renderGameSetup() {
+  setupStep = 0;
+  setupData = { draftType:null, captainMethod:null, rpsMethod:null, teamA:{captain:null,players:[],battingOrder:[],batFirst:null}, teamB:{captain:null,players:[],battingOrder:[],batFirst:null}, allPicked:[], draftOrder:[], currentDraftPick:0, rpsWinner:null, rpsChoice:null };
+  renderSetupStep();
+}
+
+function renderSetupStep() {
+  const c = document.getElementById('gameSetupContent');
+  if (allPlayers.length < 2) {
+    c.innerHTML = '<div class="empty-state"><h3>Not Enough Players</h3><p>Add at least 2 players to start a game</p></div>';
+    return;
+  }
+  switch(setupStep) {
+    case 0: renderSetupDraftType(c); break;
+    case 1: renderSetupCaptains(c); break;
+    case 2: renderSetupRPS(c); break;
+    case 3: renderSetupRPSChoice(c); break;
+    case 4: renderSetupDraft(c); break;
+    case 5: renderSetupBattingOrders(c); break;
+  }
+}
+
+function renderSetupDraftType(c) {
+  c.innerHTML = `
+    <div class="section-title">How to Set Teams?</div>
+    <div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="setDraftType('live')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">Live Draft</div>
+      <div class="text-sm mt-8">Captains pick players one by one in the app</div>
+    </div>
+    <div class="card" style="cursor:pointer;" onclick="setDraftType('manual')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">Manual Entry</div>
+      <div class="text-sm mt-8">Assign players to teams yourself</div>
+    </div>
+  `;
+}
+
+function setDraftType(type) {
+  setupData.draftType = type;
+  setupStep = 1;
+  renderSetupStep();
+}
+
+function renderSetupCaptains(c) {
+  c.innerHTML = `
+    <div class="section-title">Select Captains</div>
+    <div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="setCaptainMethod('random')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">🎲 Random Selection</div>
+      <div class="text-sm mt-8">Randomly pick two captains</div>
+    </div>
+    <div class="card" style="cursor:pointer;" onclick="setCaptainMethod('manual')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">✋ Choose Captains</div>
+      <div class="text-sm mt-8">Manually select the two captains</div>
+    </div>
+  `;
+}
+
+function setCaptainMethod(method) {
+  setupData.captainMethod = method;
+  if (method === 'random') {
+    const shuffled = [...allPlayers].sort(() => Math.random()-0.5);
+    setupData.teamA.captain = shuffled[0];
+    setupData.teamB.captain = shuffled[1];
+    setupData.teamA.players = [shuffled[0]];
+    setupData.teamB.players = [shuffled[1]];
+    showToast(`Captains: ${shuffled[0].name} & ${shuffled[1].name}`);
+    setupStep = 2;
+    renderSetupStep();
+  } else {
+    renderManualCaptainSelect(document.getElementById('gameSetupContent'));
+  }
+}
+
+function renderManualCaptainSelect(c) {
+  const stage = setupData.teamA.captain ? 'B' : 'A';
+  c.innerHTML = `
+    <div class="section-title">Select Captain ${stage}</div>
+    <p class="text-sm" style="margin-bottom:16px;">${stage==='A'?'Pick the first captain':'Pick the second captain'}</p>
+    ${allPlayers.filter(p => p.id !== setupData.teamA.captain?.id).map(p => `
+      <div class="player-row" onclick="selectManualCaptain('${p.id}')">
+        <div class="avatar">${p.photo_url?`<img src="${p.photo_url}">`:initials(p.name)}</div>
+        <div class="player-info"><div class="player-name-text">${p.name}</div></div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function selectManualCaptain(playerId) {
+  const player = allPlayers.find(p => p.id === playerId);
+  if (!setupData.teamA.captain) {
+    setupData.teamA.captain = player;
+    setupData.teamA.players = [player];
+    renderManualCaptainSelect(document.getElementById('gameSetupContent'));
+  } else {
+    setupData.teamB.captain = player;
+    setupData.teamB.players = [player];
+    setupStep = 2;
+    renderSetupStep();
+  }
+}
+
+function renderSetupRPS(c) {
+  c.innerHTML = `
+    <div class="section-title">Rock Paper Scissors</div>
+    <p class="text-sm" style="margin-bottom:16px;">${setupData.teamA.captain.name} vs ${setupData.teamB.captain.name}</p>
+    <div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="setRPSMethod('simulate')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">🎮 Simulate RPS</div>
+      <div class="text-sm mt-8">Each captain picks in the app</div>
+    </div>
+    <div class="card" style="cursor:pointer;" onclick="setRPSMethod('manual')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">✋ Manual — Pick Winner</div>
+      <div class="text-sm mt-8">Already played? Select who won</div>
+    </div>
+  `;
+}
+
+function setRPSMethod(method) {
+  setupData.rpsMethod = method;
+  if (method === 'simulate') {
+    showRPSSimulate();
+  } else {
+    showRPSManual();
+  }
+}
+
+let rpsChoiceA = null;
+function showRPSSimulate() {
+  rpsChoiceA = null;
+  const c = document.getElementById('gameSetupContent');
+  c.innerHTML = `
+    <div class="section-title">${setupData.teamA.captain.name}'s Turn</div>
+    <p class="text-sm" style="margin-bottom:20px;">Make your choice (don't show ${setupData.teamB.captain.name}!)</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <button class="rps-btn" onclick="captainARPS('rock')">🪨</button>
+      <button class="rps-btn" onclick="captainARPS('paper')">📄</button>
+      <button class="rps-btn" onclick="captainARPS('scissors')">✂️</button>
+    </div>
+  `;
+}
+
+function captainARPS(choice) {
+  rpsChoiceA = choice;
+  const c = document.getElementById('gameSetupContent');
+  c.innerHTML = `
+    <div class="section-title">${setupData.teamB.captain.name}'s Turn</div>
+    <p class="text-sm" style="margin-bottom:20px;">${setupData.teamA.captain.name} has chosen. Your turn!</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <button class="rps-btn" onclick="captainBRPS('rock')">🪨</button>
+      <button class="rps-btn" onclick="captainBRPS('paper')">📄</button>
+      <button class="rps-btn" onclick="captainBRPS('scissors')">✂️</button>
+    </div>
+  `;
+}
+
+function captainBRPS(choiceB) {
+  const choiceA = rpsChoiceA;
+  const wins = {rock:'scissors', paper:'rock', scissors:'paper'};
+  let winner;
+  if (choiceA === choiceB) {
+    showToast('Tie! Play again');
+    setTimeout(showRPSSimulate, 1000);
+    return;
+  }
+  winner = wins[choiceA] === choiceB ? 'A' : 'B';
+  const winnerName = winner==='A' ? setupData.teamA.captain.name : setupData.teamB.captain.name;
+  const c = document.getElementById('gameSetupContent');
+  c.innerHTML = `
+    <div class="rps-result text-accent">${winnerName} WINS!</div>
+    <div style="text-align:center;margin:16px 0;">
+      <span style="font-size:36px;">${choiceA==='rock'?'🪨':choiceA==='paper'?'📄':'✂️'}</span>
+      <span style="font-size:24px;margin:0 12px;">vs</span>
+      <span style="font-size:36px;">${choiceB==='rock'?'🪨':choiceB==='paper'?'📄':'✂️'}</span>
+    </div>
+    <p class="text-sm" style="text-align:center;margin-bottom:20px;">${setupData.teamA.captain.name} played ${choiceA}, ${setupData.teamB.captain.name} played ${choiceB}</p>
+    <button class="btn btn-primary" onclick="setRPSWinner('${winner}')">Continue →</button>
+  `;
+}
+
+function showRPSManual() {
+  const c = document.getElementById('gameSetupContent');
+  c.innerHTML = `
+    <div class="section-title">Who Won RPS?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <button class="btn btn-secondary" style="padding:20px;font-size:16px;" onclick="setRPSWinner('A')">${setupData.teamA.captain.name}</button>
+      <button class="btn btn-secondary" style="padding:20px;font-size:16px;" onclick="setRPSWinner('B')">${setupData.teamB.captain.name}</button>
+    </div>
+  `;
+}
+
+function setRPSWinner(winner) {
+  setupData.rpsWinner = winner;
+  setupStep = 3;
+  renderSetupStep();
+}
+
+function renderSetupRPSChoice(c) {
+  const winnerName = setupData.rpsWinner==='A' ? setupData.teamA.captain.name : setupData.teamB.captain.name;
+  const loserName = setupData.rpsWinner==='A' ? setupData.teamB.captain.name : setupData.teamA.captain.name;
+  c.innerHTML = `
+    <div class="section-title">${winnerName}'s Choice</div>
+    <p class="text-sm" style="margin-bottom:20px;">As the winner, what do you want to choose?</p>
+    <div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="winnerChooses('bat')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">⚾ Batting Order</div>
+      <div class="text-sm mt-8">Choose to bat top or bottom of inning</div>
+    </div>
+    <div class="card" style="cursor:pointer;" onclick="winnerChooses('draft')">
+      <div style="font-family:'Bebas Neue',cursive;font-size:20px;">📋 Draft Position</div>
+      <div class="text-sm mt-8">Choose 1st pick or 2nd & 3rd picks</div>
+    </div>
+  `;
+}
+
+function winnerChooses(choice) {
+  setupData.rpsChoice = choice;
+  const winner = setupData.rpsWinner;
+  const loser = winner==='A'?'B':'A';
+  const winnerName = winner==='A'?setupData.teamA.captain.name:setupData.teamB.captain.name;
+  const loserName = loser==='A'?setupData.teamA.captain.name:setupData.teamB.captain.name;
+  const c = document.getElementById('gameSetupContent');
+
+  if (choice==='bat') {
+    c.innerHTML = `
+      <div class="section-title">${winnerName}: Bat When?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+        <button class="btn btn-secondary" style="padding:20px;" onclick="winnerPicksBat('top','${winner}','${loser}','${loserName}')">Top (Bat First)</button>
+        <button class="btn btn-secondary" style="padding:20px;" onclick="winnerPicksBat('bottom','${winner}','${loser}','${loserName}')">Bottom (Bat Second)</button>
+      </div>
+    `;
+  } else {
+    c.innerHTML = `
+      <div class="section-title">${winnerName}: Draft Position?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+        <button class="btn btn-secondary" style="padding:20px;" onclick="winnerPicksDraft('first','${winner}','${loser}','${loserName}')">1st Pick</button>
+        <button class="btn btn-secondary" style="padding:20px;" onclick="winnerPicksDraft('second_third','${winner}','${loser}','${loserName}')">2nd & 3rd Picks</button>
+      </div>
+    `;
+  }
+}
+
+function winnerPicksBat(position, winner, loser, loserName) {
+  const wTeam = winner==='A'?setupData.teamA:setupData.teamB;
+  const lTeam = loser==='A'?setupData.teamA:setupData.teamB;
+  wTeam.batFirst = position==='top';
+  lTeam.batFirst = position!=='top';
+  // Now loser picks draft
+  showLoserPicksDraft(loser, loserName);
+}
+
+function showLoserPicksDraft(loser, loserName) {
+  const c = document.getElementById('gameSetupContent');
+  c.innerHTML = `
+    <div class="section-title">${loserName}: Draft Position?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <button class="btn btn-secondary" style="padding:20px;" onclick="loserPicksDraft('first','${loser}')">1st Pick</button>
+      <button class="btn btn-secondary" style="padding:20px;" onclick="loserPicksDraft('second_third','${loser}')">2nd & 3rd Picks</button>
+    </div>
+  `;
+}
+
+function loserPicksDraft(position, loser) {
+  setupDraftOrder(loser==='A'?'loser_A':'loser_B', position);
+}
+
+function winnerPicksDraft(position, winner, loser, loserName) {
+  // Winner picked draft, now loser picks bat
+  const c = document.getElementById('gameSetupContent');
+  c.innerHTML = `
+    <div class="section-title">${loserName}: Bat When?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <button class="btn btn-secondary" style="padding:20px;" onclick="loserPicksBat('top','${winner}','${position}')">Top (Bat First)</button>
+      <button class="btn btn-secondary" style="padding:20px;" onclick="loserPicksBat('bottom','${winner}','${position}')">Bottom (Bat Second)</button>
+    </div>
+  `;
+}
+
+function loserPicksBat(position, winner, winnerDraftPos) {
+  const loser = winner==='A'?'B':'A';
+  const wTeam = winner==='A'?setupData.teamA:setupData.teamB;
+  const lTeam = loser==='A'?setupData.teamA:setupData.teamB;
+  lTeam.batFirst = position==='top';
+  wTeam.batFirst = position!=='top';
+  setupDraftOrderFromWinner(winner, winnerDraftPos);
+}
+
+function setupDraftOrderFromWinner(winner, winnerPos) {
+  const loser = winner==='A'?'B':'A';
+  buildDraftOrder(winner, winnerPos, loser, winnerPos==='first'?'second_third':'first');
+}
+
+function setupDraftOrder(loserKey, loserPos) {
+  const loser = loserKey==='loser_A'?'A':'B';
+  const winner = loser==='A'?'B':'A';
+  const winnerPos = loserPos==='first'?'second_third':'first';
+  buildDraftOrder(winner, winnerPos, loser, loserPos);
+}
+
+function buildDraftOrder(teamFirst, firstPos, teamSecond, secondPos) {
+  // Build the pick order
+  // firstPos 'first' = pick 1; 'second_third' = picks 2&3
+  let order = [];
+  if (firstPos==='first') {
+    // Team A gets pick 1, Team B gets picks 2&3, then alternating
+    order = [teamFirst, teamSecond, teamSecond];
+  } else {
+    order = [teamSecond, teamFirst, teamFirst];
+  }
+  // Remaining players alternate starting with whoever had fewer picks
+  const remaining = allPlayers.length - 2; // minus captains
+  let lastPick = order[order.length-1];
+  for (let i=0; i<remaining-1; i++) {
+    lastPick = lastPick==='A'?'B':'A';
+    order.push(lastPick);
+  }
+  setupData.draftOrder = order;
+  setupData.currentDraftPick = 0;
+  // Captains are already on teams
+  setupData.allPicked = [setupData.teamA.captain.id, setupData.teamB.captain.id];
+  setupStep = 4;
+  renderSetupStep();
+}
+
+function renderSetupDraft(c) {
+  if (setupData.draftType === 'manual') {
+    renderManualTeamAssign(c);
+    return;
+  }
+  const pick = setupData.currentDraftPick;
+  const pickTeam = setupData.draftOrder[pick];
+  if (!pickTeam || setupData.allPicked.length >= allPlayers.length) {
+    setupStep = 5;
+    renderSetupStep();
+    return;
+  }
+  const teamName = pickTeam==='A'?setupData.teamA.captain.name+"'s Team":setupData.teamB.captain.name+"'s Team";
+  const available = allPlayers.filter(p => !setupData.allPicked.includes(p.id));
+
+  c.innerHTML = `
+    <div class="section-title">Draft — Pick #${pick+1}</div>
+    <p class="text-sm" style="margin-bottom:4px;">${teamName}'s pick</p>
+    <div class="flex-gap" style="margin-bottom:16px;">
+      <span class="chip accent">Team ${setupData.teamA.captain.name}: ${setupData.teamA.players.length}</span>
+      <span class="chip blue">Team ${setupData.teamB.captain.name}: ${setupData.teamB.players.length}</span>
+    </div>
+    ${available.map(p => `
+      <div class="draft-pick" onclick="draftPlayer('${p.id}','${pickTeam}')">
+        <div class="avatar">${p.photo_url?`<img src="${p.photo_url}">`:initials(p.name)}</div>
+        <div style="flex:1;font-weight:600;">${p.name}</div>
+        <div class="text-sm">Pick</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function draftPlayer(playerId, team) {
+  const player = allPlayers.find(p=>p.id===playerId);
+  if (team==='A') setupData.teamA.players.push(player);
+  else setupData.teamB.players.push(player);
+  setupData.allPicked.push(playerId);
+  setupData.currentDraftPick++;
+  if (setupData.allPicked.length >= allPlayers.length) {
+    setupStep = 5;
+    renderSetupStep();
+  } else {
+    renderSetupDraft(document.getElementById('gameSetupContent'));
+  }
+}
+
+function renderManualTeamAssign(c) {
+  const unassigned = allPlayers.filter(p => !setupData.allPicked.includes(p.id));
+  c.innerHTML = `
+    <div class="section-title">Assign Players</div>
+    <div class="flex-gap" style="margin-bottom:16px;">
+      <span class="chip accent">Team A: ${setupData.teamA.players.length}</span>
+      <span class="chip blue">Team B: ${setupData.teamB.players.length}</span>
+    </div>
+    ${unassigned.length===0?`<button class="btn btn-primary" onclick="setupStep=5;renderSetupStep()">Set Batting Orders →</button>`:''}
+    ${unassigned.map(p=>`
+      <div class="draft-pick">
+        <div class="avatar">${p.photo_url?`<img src="${p.photo_url}">`:initials(p.name)}</div>
+        <div style="flex:1;font-weight:600;">${p.name}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:rgba(232,200,74,0.2);color:var(--accent);border:1px solid var(--accent);" onclick="manualAssign('${p.id}','A')">A</button>
+          <button class="btn btn-sm" style="background:rgba(74,143,232,0.2);color:var(--accent2);border:1px solid var(--accent2);" onclick="manualAssign('${p.id}','B')">B</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function manualAssign(playerId, team) {
+  const player = allPlayers.find(p=>p.id===playerId);
+  if (team==='A') setupData.teamA.players.push(player);
+  else setupData.teamB.players.push(player);
+  setupData.allPicked.push(playerId);
+  renderManualTeamAssign(document.getElementById('gameSetupContent'));
+}
+
+function renderSetupBattingOrders(c) {
+  const allAssigned = [...setupData.teamA.players, ...setupData.teamB.players];
+  const allPlayersAssigned = allPlayers.every(p => allAssigned.find(ap=>ap.id===p.id));
+
+  if (setupData.teamA.batFirst === null) {
+    // Need to set bat order (manual entry mode skipped rps)
+    c.innerHTML = `
+      <div class="section-title">Who Bats First?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+        <button class="btn btn-secondary" style="padding:20px;" onclick="setManualBatFirst('A')">Team ${setupData.teamA.captain.name}</button>
+        <button class="btn btn-secondary" style="padding:20px;" onclick="setManualBatFirst('B')">Team ${setupData.teamB.captain.name}</button>
+      </div>
+    `;
+    return;
+  }
+
+  c.innerHTML = `
+    <div class="section-title">Batting Orders</div>
+    <p class="text-sm" style="margin-bottom:16px;">Set the batting order for each team</p>
+    <div class="card" style="cursor:pointer;margin-bottom:10px;" onclick="openBattingOrder('A')">
+      <div class="flex-between">
+        <div>
+          <div style="font-family:'Bebas Neue',cursive;font-size:20px;color:var(--accent);">Team ${setupData.teamA.captain.name}</div>
+          <div class="text-sm">${setupData.teamA.players.length} players · ${setupData.teamA.battingOrder.length>0?'Order set':'Tap to set'}</div>
+        </div>
+        ${setupData.teamA.battingOrder.length>0?'<span class="text-green">✓</span>':''}
+      </div>
+    </div>
+    <div class="card" style="cursor:pointer;margin-bottom:20px;" onclick="openBattingOrder('B')">
+      <div class="flex-between">
+        <div>
+          <div style="font-family:'Bebas Neue',cursive;font-size:20px;color:var(--accent2);">Team ${setupData.teamB.captain.name}</div>
+          <div class="text-sm">${setupData.teamB.players.length} players · ${setupData.teamB.battingOrder.length>0?'Order set':'Tap to set'}</div>
+        </div>
+        ${setupData.teamB.battingOrder.length>0?'<span class="text-green">✓</span>':''}
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="startGame()" ${(setupData.teamA.battingOrder.length>0&&setupData.teamB.battingOrder.length>0)?'':'disabled'}>Start Game ⚾</button>
+  `;
+}
+
+function setManualBatFirst(team) {
+  setupData.teamA.batFirst = team==='A';
+  setupData.teamB.batFirst = team==='B';
+  renderSetupBattingOrders(document.getElementById('gameSetupContent'));
+}
+
+function openBattingOrder(team) {
+  editingBattingTeam = team;
+  const teamData = team==='A'?setupData.teamA:setupData.teamB;
+  const teamName = `Team ${teamData.captain.name}`;
+  document.getElementById('battingOrderTitle').textContent = teamName + ' Batting Order';
+  // Init order if not set
+  if (teamData.battingOrder.length===0) {
+    teamData.battingOrder = [...teamData.players.map(p=>p.id)];
+  }
+  renderBattingOrderList();
+  openModal('modal-batting-order');
+}
+
+function renderBattingOrderList() {
+  const teamData = editingBattingTeam==='A'?setupData.teamA:setupData.teamB;
+  const list = document.getElementById('battingOrderList');
+  list.innerHTML = teamData.battingOrder.map((pid, i) => {
+    const p = allPlayers.find(pl=>pl.id===pid);
+    return `
+      <div class="order-item">
+        <div class="order-num">${i+1}</div>
+        <div class="avatar" style="width:32px;height:32px;font-size:14px;">${p.photo_url?`<img src="${p.photo_url}">`:initials(p.name)}</div>
+        <div style="flex:1;font-weight:600;font-size:14px;">${p.name}</div>
+        <div class="order-up-down">
+          <button onclick="moveInOrder(${i},-1)">↑</button>
+          <button onclick="moveInOrder(${i},1)">↓</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function moveInOrder(idx, dir) {
+  const teamData = editingBattingTeam==='A'?setupData.teamA:setupData.teamB;
+  const newIdx = idx+dir;
+  if (newIdx<0||newIdx>=teamData.battingOrder.length) return;
+  const arr = teamData.battingOrder;
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  renderBattingOrderList();
+}
+
+function randomizeBattingOrder() {
+  const teamData = editingBattingTeam==='A'?setupData.teamA:setupData.teamB;
+  teamData.battingOrder = teamData.battingOrder.sort(()=>Math.random()-0.5);
+  renderBattingOrderList();
+}
+
+function saveBattingOrder() {
+  closeModal('modal-batting-order');
+  renderSetupBattingOrders(document.getElementById('gameSetupContent'));
+}
+
+// ============================================================
+// START GAME
+// ============================================================
+async function startGame() {
+  const topTeam = setupData.teamA.batFirst ? 'A' : 'B';
+  const gs = {
+    league_id: currentLeague.id,
+    status: 'live',
+    created_at: new Date().toISOString(),
+    team_a: {
+      captain: setupData.teamA.captain.name,
+      captain_id: setupData.teamA.captain.id,
+      players: setupData.teamA.players.map(p=>({id:p.id,name:p.name})),
+      batting_order: setupData.teamA.battingOrder,
+      current_batter_idx: 0
+    },
+    team_b: {
+      captain: setupData.teamB.captain.name,
+      captain_id: setupData.teamB.captain.id,
+      players: setupData.teamB.players.map(p=>({id:p.id,name:p.name})),
+      batting_order: setupData.teamB.battingOrder,
+      current_batter_idx: 0
+    },
+    inning: 1,
+    half: topTeam==='A'?'top':'bottom', // which team bats first
+    batting_team: topTeam, // 'A' or 'B'
+    outs: 0,
+    bases: [false, false, false], // 1st, 2nd, 3rd
+    score: { A: Array(9).fill(0), B: Array(9).fill(0) },
+    innings_played: { A: 0, B: 0 },
+    log: [],
+    undo_stack: []
+  };
+
+  const { data, error } = await sb.from('games').insert(gs).select().single();
+  if (error) { showToast('Error starting game: '+error.message); return; }
+  currentGame = data;
+  gameState = data;
+  subscribeToGame(data.id);
+  renderLiveGame();
+  showScreen('screen-live-game');
+}
+
+// ============================================================
+// LIVE GAME
+// ============================================================
+function subscribeToGame(gameId) {
+  if (gameSubscription) { sb.removeChannel(gameSubscription); }
+  gameSubscription = sb.channel('game-'+gameId)
+    .on('postgres_changes', {event:'UPDATE', schema:'public', table:'games', filter:`id=eq.${gameId}`}, payload => {
+      gameState = payload.new;
+      renderLiveGame();
+    })
+    .subscribe();
+}
+
+async function updateGameState(updates, logEntry) {
+  // Add to undo stack
+  const undoEntry = {
+    snapshot: JSON.parse(JSON.stringify(gameState)),
+    description: logEntry
+  };
+  const newStack = [...(gameState.undo_stack||[]), undoEntry].slice(-20);
+  const newLog = logEntry ? [...(gameState.log||[]), {text:logEntry, time:new Date().toISOString()}] : (gameState.log||[]);
+
+  const fullUpdate = { ...updates, undo_stack: newStack, log: newLog };
+  const { error } = await sb.from('games').update(fullUpdate).eq('id', gameState.id);
+  if (error) { showToast('Sync error: '+error.message); }
+  // Optimistically update local state
+  gameState = { ...gameState, ...fullUpdate };
+  renderLiveGame();
+}
+
+function getCurrentBatter() {
+  const team = gameState.batting_team==='A'?gameState.team_a:gameState.team_b;
+  const idx = team.current_batter_idx % team.batting_order.length;
+  const playerId = team.batting_order[idx];
+  return allPlayers.find(p=>p.id===playerId) || {name:'Unknown',id:playerId};
+}
+
+function getFieldingTeamPlayers() {
+  const fieldingTeam = gameState.batting_team==='A'?'B':'A';
+  const team = fieldingTeam==='A'?gameState.team_a:gameState.team_b;
+  return team.players.map(p => allPlayers.find(pl=>pl.id===p.id)||p);
+}
+
+function isPostSesh() {
+  // Post-sesh: bottom of 7th through end of game
+  if (gameState.inning > 7) return true;
+  if (gameState.inning === 7 && gameState.batting_team !== (gameState.half==='top'?'A':'A')) {
+    // Check if it's the bottom half
+    const topTeam = gameState.half; // which team bats in top
+    // Actually: batting_team changes each half. Post-sesh = inning 7 bottom onwards
+    return isBottomHalf();
+  }
+  return false;
+}
+
+function isBottomHalf() {
+  // The "bottom" team is whoever bats second
+  // teamA.batFirst determines this
+  const bottomTeam = gameState.team_a ? (gameState.team_a.batting_order ? 
+    (gameState.batting_team !== getTopTeam() ? true : false) : false) : false;
+  return gameState.batting_team !== getTopTeam();
+}
+
+function getTopTeam() {
+  // The top team is whichever team bats in the top of each inning
+  // Stored as the initial batting_team for inning 1
+  return gameState.first_batting_team || gameState.batting_team;
+}
+
+function isCurrentlyPostSesh() {
+  const topTeam = gameState.first_batting_team;
+  const isBottom = gameState.batting_team !== topTeam;
+  return (gameState.inning > 7) || (gameState.inning === 7 && isBottom);
+}
+
+function renderLiveGame() {
+  const gs = gameState;
+  if (!gs) return;
+  const batter = getCurrentBatter();
+  const teamA = gs.team_a;
+  const teamB = gs.team_b;
+  const scoreA = gs.score.A.reduce((a,b)=>a+b,0);
+  const scoreB = gs.score.B.reduce((a,b)=>a+b,0);
+  const battingTeamName = gs.batting_team==='A'?teamA.captain+"'s Team":teamB.captain+"'s Team";
+  const postSesh = isCurrentlyPostSesh();
+
+  document.getElementById('liveGameContent').innerHTML = `
+    <div style="padding:12px 16px 0;">
+      <!-- TOP BAR -->
+      <div class="flex-between" style="margin-bottom:12px;">
+        <button class="back-btn" onclick="confirmLeaveGame()">← Leave</button>
+        <div style="font-family:'Bebas Neue',cursive;font-size:14px;color:var(--text2);">LIVE GAME</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-ghost" style="width:auto;" onclick="openUndoModal()">↩ Undo</button>
+        </div>
+      </div>
+
+      <!-- POST SESH BANNER -->
+      ${postSesh?`<div style="background:rgba(74,143,232,0.15);border:1px solid var(--accent2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--accent2);text-align:center;">📍 POST-SESH STATS NOW TRACKING</div>`:''}
+
+      <!-- SCOREBOARD -->
+      <div class="scoreboard" style="margin-bottom:12px;">
+        <div class="score-header">
+          <div></div>
+          ${[1,2,3,4,5,6,7,8,9].map(i=>`<div>${i}</div>`).join('')}
+          <div>R</div><div>H</div>
+        </div>
+        ${['A','B'].map(team => {
+          const t = team==='A'?teamA:teamB;
+          const scores = gs.score[team];
+          const totalR = scores.reduce((a,b)=>a+b,0);
+          const totalH = (t.batting_order||[]).reduce((sum,pid) => {
+            // count hits from log - simplified
+            return sum;
+          }, 0);
+          return `
+          <div class="score-row">
+            <div class="score-team">${t.captain}</div>
+            ${scores.map((s,i) => `<div class="score-cell ${gs.inning===i+1&&gs.batting_team===team?'current':''}">${s||'-'}</div>`).join('')}
+            <div class="score-total">${totalR}</div>
+            <div class="score-cell">-</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- INNING + OUTS -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="inning-indicator" style="flex:1;margin-right:10px;margin-bottom:0;">
+          <div class="inning-badge">${gs.inning === 9 && isCurrentlyPostSesh() && Math.abs(scoreA-scoreB)>0 ? 'FINAL' : ordinal(gs.inning)} INNING</div>
+          <div class="half-badge">${gs.batting_team===getTopTeam()?'▲ TOP':'▼ BOT'}</div>
+        </div>
+        <div class="outs-display">
+          <span class="text-sm" style="margin-right:4px;">OUTS</span>
+          ${[0,1,2].map(i=>`<div class="out-dot ${gs.outs>i?'active':''}"></div>`).join('')}
+        </div>
+      </div>
+
+      <!-- BASES + BATTER -->
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+        <div class="diamond">
+          <div class="base base-second ${gs.bases[1]?'occupied':''}"></div>
+          <div class="base base-third ${gs.bases[2]?'occupied':''}"></div>
+          <div class="base base-first ${gs.bases[0]?'occupied':''}"></div>
+          <div class="base base-home"></div>
+        </div>
+        <div class="batter-card" style="flex:1;margin-bottom:0;">
+          <div class="text-sm">NOW BATTING</div>
+          <div class="batter-name" onclick="viewPlayerProfile('${batter.id}',true)">${batter.name}</div>
+          <div class="batter-meta">${battingTeamName}</div>
+        </div>
+      </div>
+
+      <!-- STEAL BUTTONS (if runners on) -->
+      ${gs.bases.some(b=>b) ? `
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-ghost btn-sm" style="width:100%;border-color:var(--accent2);color:var(--accent2);" onclick="initiateSteal()">🏃 Steal Attempt</button>
+      </div>` : ''}
+
+      <!-- AT BAT BUTTONS -->
+      <div class="at-bat-grid">
+        <button class="ab-btn hit" onclick="recordAtBat('single')">SINGLE</button>
+        <button class="ab-btn hit" onclick="recordAtBat('double')">DOUBLE</button>
+        <button class="ab-btn hit" onclick="recordAtBat('triple')">TRIPLE</button>
+        <button class="ab-btn hr" onclick="recordAtBat('hr')">HOME RUN</button>
+        <button class="ab-btn out" onclick="recordAtBat('strikeout')">STRIKEOUT</button>
+        <button class="ab-btn out" onclick="recordAtBat('flyout')">FLY OUT</button>
+        <button class="ab-btn out" style="grid-column:span 2;" onclick="recordAtBat('qab')">QUALITY AT BAT</button>
+      </div>
+
+      <!-- GAME LOG -->
+      <div class="card" style="margin-top:4px;">
+        <div class="card-header">Game Log</div>
+        <div style="max-height:120px;overflow-y:auto;">
+          ${[...(gs.log||[])].reverse().slice(0,10).map(l=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--text2);">${l.text}</div>`).join('')||'<div class="text-sm">No events yet</div>'}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function ordinal(n) {
+  const s=['th','st','nd','rd'];
+  const v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+
+async function recordAtBat(type) {
+  const gs = gameState;
+  const batter = getCurrentBatter();
+  const battingTeam = gs.batting_team;
+  const battingTeamData = battingTeam==='A'?gs.team_a:gs.team_b;
+  const postSesh = isCurrentlyPostSesh();
+
+  let newBases = [...gs.bases];
+  let newOuts = gs.outs;
+  let runsScored = 0;
+  let newScore = { A:[...gs.score.A], B:[...gs.score.B] };
+  let logText = '';
+
+  // Stat tracking
+  let statsUpdate = {};
+  let psStatsUpdate = {};
+
+  const isHit = ['single','double','triple','hr'].includes(type);
+  const isOut = ['strikeout','flyout','qab'].includes(type);
+  const bases = {single:1, double:2, triple:3, hr:4};
+  const advance = bases[type] || 0;
+
+  if (isHit) {
+    // Advance runners
+    let newBasesArr = [false,false,false];
+    if (type==='hr') {
+      // Everyone scores
+      runsScored = newBases.filter(b=>b).length + 1;
+      newBasesArr = [false,false,false];
+    } else {
+      // Advance each runner by `advance` bases
+      for (let i=2; i>=0; i--) {
+        if (newBases[i]) {
+          const newPos = i + advance;
+          if (newPos >= 3) runsScored++;
+          else newBasesArr[newPos] = true;
+        }
+      }
+      // Place batter
+      if (advance-1 < 3) newBasesArr[advance-1] = true;
+    }
+    newBases = newBasesArr;
+    newScore[battingTeam][gs.inning-1] += runsScored;
+
+    statsUpdate = {
+      ab:1, h:1, rbi:runsScored,
+      singles: type==='single'?1:0,
+      doubles: type==='double'?1:0,
+      triples: type==='triple'?1:0,
+      hr: type==='hr'?1:0,
+    };
+    logText = `${batter.name}: ${type.toUpperCase()}${runsScored>0?` — ${runsScored} run(s) scored`:''}`;
+  } else {
+    newOuts++;
+    statsUpdate = {
+      ab:1,
+      k: type==='strikeout'?1:0,
+      fo: type==='flyout'?1:0,
+      qab: type==='qab'?1:0
+    };
+    logText = `${batter.name}: ${type==='strikeout'?'Strikeout':type==='flyout'?'Fly Out':'QAB'}`;
+  }
+
+  // Track runs scored for base runners
+  // (simplified — we track batter RBI above)
+
+  // Update player stats
+  await updatePlayerStats(batter.id, statsUpdate, postSesh ? statsUpdate : null);
+
+  // Also update runs for players who scored (simplified - track batter only for now)
+  if (type==='hr') {
+    await updatePlayerStats(batter.id, {runs:1}, postSesh?{runs:1}:null);
+  }
+
+  // Advance batter index
+  const newBatterIdx = (battingTeamData.current_batter_idx + 1) % battingTeamData.batting_order.length;
+  let teamUpdate = battingTeam==='A' ?
+    { team_a: { ...gs.team_a, current_batter_idx: newBatterIdx } } :
+    { team_b: { ...gs.team_b, current_batter_idx: newBatterIdx } };
+
+  let updates = { ...teamUpdate, bases: newBases, outs: newOuts, score: newScore };
+
+  // Check for 3 outs
+  if (newOuts >= 3) {
+    updates = await handleThreeOuts(updates, newScore);
+  }
+
+  await updateGameState(updates, logText);
+}
+
+async function handleThreeOuts(updates, newScore) {
+  const gs = { ...gameState, ...updates };
+  const topTeam = gs.first_batting_team || gameState.first_batting_team;
+  const currentBatter = gs.batting_team;
+  const otherTeam = currentBatter==='A'?'B':'A';
+
+  // Is this the end of an inning?
+  const endOfInning = currentBatter !== topTeam; // bottom just finished
+
+  updates.outs = 0;
+  updates.bases = [false,false,false];
+  updates.batting_team = otherTeam;
+
+  if (endOfInning) {
+    const newInning = gs.inning + 1;
+    // Check if game over
+    const scoreA = newScore.A.reduce((a,b)=>a+b,0);
+    const scoreB = newScore.B.reduce((a,b)=>a+b,0);
+    if (gs.inning >= 9 && scoreA !== scoreB) {
+      // Game over!
+      updates.status = 'final';
+      updates.batting_team = currentBatter; // doesn't matter
+      return updates;
+    }
+    updates.inning = newInning;
+    updates.batting_team = topTeam;
+  }
+  return updates;
+}
+
+async function updatePlayerStats(playerId, statsUpdate, psUpdate) {
+  const { data: player } = await sb.from('players').select('stats, postsesh_stats').eq('id', playerId).single();
+  if (!player) return;
+
+  const newStats = { ...(player.stats||{}) };
+  for (const [k,v] of Object.entries(statsUpdate)) {
+    newStats[k] = (newStats[k]||0) + v;
+  }
+
+  let updates = { stats: newStats };
+
+  if (psUpdate) {
+    const newPS = { ...(player.postsesh_stats||{}) };
+    for (const [k,v] of Object.entries(psUpdate)) {
+      newPS[k] = (newPS[k]||0) + v;
+    }
+    updates.postsesh_stats = newPS;
+  }
+
+  await sb.from('players').update(updates).eq('id', playerId);
+  // Update local cache
+  const idx = allPlayers.findIndex(p=>p.id===playerId);
+  if (idx>=0) { allPlayers[idx] = { ...allPlayers[idx], ...updates }; }
+}
+
+// ============================================================
+// STEAL
+// ============================================================
+function initiateSteal() {
+  const gs = gameState;
+  // Find lead runner (highest base)
+  let leadBase = -1;
+  for (let i=2; i>=0; i--) { if (gs.bases[i]) { leadBase=i; break; } }
+  if (leadBase===-1) { showToast('No runners on base'); return; }
+  if (leadBase===2) { showToast('Runner on 3rd cannot steal'); return; }
+
+  pendingSteal = leadBase;
+  const stealTarget = leadBase+1;
+  document.getElementById('stealModalTitle').textContent = `Steal Attempt — Runner on ${leadBase===0?'1st':'2nd'} → ${stealTarget===1?'2nd':'3rd'}`;
+
+  // Show fielding team catchers
+  const fieldingPlayers = getFieldingTeamPlayers();
+  document.getElementById('stealCatcherList').innerHTML = fieldingPlayers.map(p=>`
+    <button class="steal-player-btn" onclick="selectCatcher('${p.id}','${p.name}')">
+      <div class="avatar" style="width:36px;height:36px;font-size:14px;">${p.photo_url?`<img src="${p.photo_url}">`:initials(p.name)}</div>
+      <div style="font-weight:600;">${p.name}</div>
+    </button>
+  `).join('');
+  openModal('modal-steal');
+}
+
+function selectCatcher(catcherId, catcherName) {
+  pendingStealCatcher = { id:catcherId, name:catcherName };
+  closeModal('modal-steal');
+  document.getElementById('stealResultTitle').textContent = `${catcherName} — Safe or Out?`;
+  openModal('modal-steal-result');
+}
+
+async function resolveSteal(safe) {
+  closeModal('modal-steal-result');
+  const gs = gameState;
+  const postSesh = isCurrentlyPostSesh();
+  let newBases = [...gs.bases];
+  let newOuts = gs.outs;
+  const batter = getCurrentBatter(); // stealer is lead runner, not batter
+  // Find stealing runner
+  let stealerBase = pendingSteal;
+
+  // Find the actual player on that base (simplified - use batting order)
+  // For stat tracking we track the batting team's current stats based on base position
+  // This is simplified - in a full implementation we'd track who's on each base
+
+  if (safe) {
+    newBases[stealerBase] = false;
+    newBases[stealerBase+1] = true;
+    // Update stealer stats (simplified: attribute to a player)
+    const logText = `Stolen base (${pendingStealCatcher.name} catching)`;
+    await updatePlayerStats(pendingStealCatcher.id, {sba:1}, postSesh?{sba:1}:null);
+    await updateGameState({ bases: newBases }, logText);
+    showToast('Stolen base!');
+  } else {
+    newOuts++;
+    newBases[stealerBase] = false;
+    let updates = { bases: newBases, outs: newOuts };
+    const logText = `Caught stealing (${pendingStealCatcher.name} threw out runner)`;
+    await updatePlayerStats(pendingStealCatcher.id, {cs_caught:1}, postSesh?{cs_caught:1}:null);
+    if (newOuts >= 3) {
+      updates = await handleThreeOuts(updates, gs.score);
+    }
+    await updateGameState(updates, logText);
+    showToast('Caught stealing!');
+  }
+  pendingSteal = null;
+  pendingStealCatcher = null;
+}
+
+// ============================================================
+// UNDO
+// ============================================================
+function openUndoModal() {
+  const stack = gameState.undo_stack || [];
+  const list = document.getElementById('undoList');
+  if (stack.length === 0) {
+    list.innerHTML = '<div class="text-sm" style="padding:12px;">No actions to undo</div>';
+  } else {
+    list.innerHTML = [...stack].reverse().map((entry, i) => `
+      <div class="undo-item">
+        <div>
+          <div style="font-size:13px;font-weight:600;">${entry.description||'Game action'}</div>
+          <div class="text-sm">${new Date(entry.snapshot.updated_at||Date.now()).toLocaleTimeString()}</div>
+        </div>
+        <button class="btn btn-sm btn-danger" style="width:auto;" onclick="confirmUndo(${stack.length-1-i})">Revert</button>
+      </div>
+    `).join('');
+  }
+  openModal('modal-undo');
+}
+
+async function confirmUndo(stackIdx) {
+  const stack = gameState.undo_stack || [];
+  const entry = stack[stackIdx];
+  if (!entry) return;
+  closeModal('modal-undo');
+  // Restore snapshot
+  const restored = { ...entry.snapshot, undo_stack: stack.slice(0, stackIdx) };
+  const { error } = await sb.from('games').update(restored).eq('id', gameState.id);
+  if (error) { showToast('Undo failed'); return; }
+  gameState = restored;
+  showToast('Reverted!');
+  renderLiveGame();
+}
+
+// ============================================================
+// END GAME
+// ============================================================
+function checkGameEnd() {
+  if (gameState.status === 'final') {
+    showEndGame();
+  }
+}
+
+function showEndGame() {
+  const gs = gameState;
+  const scoreA = gs.score.A.reduce((a,b)=>a+b,0);
+  const scoreB = gs.score.B.reduce((a,b)=>a+b,0);
+  const winner = scoreA > scoreB ? gs.team_a.captain : gs.team_b.captain;
+
+  // Show MVP selection
+  const allGamePlayers = [...gs.team_a.players, ...gs.team_b.players];
+  document.getElementById('mvpPlayerList').innerHTML = allGamePlayers.map(p => `
+    <button class="steal-player-btn" onclick="selectMVP('${p.id}')">
+      <div class="avatar" style="width:36px;height:36px;font-size:14px;">${p.photo_url?`<img src="${p.photo_url}">`:initials(p.name)}</div>
+      <div style="font-weight:600;">${p.name}</div>
+    </button>
+  `).join('');
+  openModal('modal-mvp');
+}
+
+async function selectMVP(playerId) {
+  closeModal('modal-mvp');
+  await updatePlayerStats(playerId, {mvp:1}, null);
+  await sb.from('games').update({status:'final', mvp_player_id: playerId}).eq('id', gameState.id);
+  showToast('MVP awarded! 🏆');
+  showScreen('screen-league-home');
+}
+
+function confirmLeaveGame() {
+  if (confirm('Leave this game? You can return to it from Game History if it\'s not finished.')) {
+    if (gameSubscription) { sb.removeChannel(gameSubscription); gameSubscription = null; }
+    showScreen('screen-league-home');
+  }
+}
+
+// ============================================================
+// GAME HISTORY
+// ============================================================
+async function loadHistory() {
+  const { data } = await sb.from('games').select('*').eq('league_id', currentLeague.id).order('created_at', {ascending:false});
+  const c = document.getElementById('historyContent');
+  if (!data||data.length===0) {
+    c.innerHTML = '<div class="empty-state"><h3>No Games Yet</h3><p>Start a game to see history</p></div>';
+    return;
+  }
+  c.innerHTML = data.map(g => {
+    const scoreA = g.score?.A?.reduce((a,b)=>a+b,0)||0;
+    const scoreB = g.score?.B?.reduce((a,b)=>a+b,0)||0;
+    const date = new Date(g.created_at).toLocaleDateString();
+    const status = g.status==='final'?'Final':'In Progress';
+    return `
+      <div class="game-item" onclick="viewBoxScore('${g.id}')">
+        <div class="flex-between">
+          <div>
+            <div class="game-score-display">${g.team_a?.captain||'Team A'} <span class="text-accent">${scoreA}</span> — <span class="text-accent">${scoreB}</span> ${g.team_b?.captain||'Team B'}</div>
+            <div class="game-date">${date} · ${status}</div>
+          </div>
+          ${g.status==='live'?`<button class="btn btn-sm btn-primary" style="width:auto;" onclick="event.stopPropagation();resumeGame('${g.id}')">Resume</button>`:''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function resumeGame(gameId) {
+  const { data } = await sb.from('games').select('*').eq('id', gameId).single();
+  if (!data) return;
+  currentGame = data;
+  gameState = data;
+  if (!gameState.first_batting_team) {
+    gameState.first_batting_team = gameState.batting_team;
+    await sb.from('games').update({first_batting_team: gameState.batting_team}).eq('id', gameId);
+  }
+  subscribeToGame(gameId);
+  renderLiveGame();
+  showScreen('screen-live-game');
+}
+
+async function viewBoxScore(gameId) {
+  const { data: game } = await sb.from('games').select('*').eq('id', gameId).single();
+  if (!game) return;
+  renderBoxScore(game);
+  showScreen('screen-boxscore');
+}
+
+function renderBoxScore(game) {
+  const scoreA = game.score?.A||Array(9).fill(0);
+  const scoreB = game.score?.B||Array(9).fill(0);
+  const totalA = scoreA.reduce((a,b)=>a+b,0);
+  const totalB = scoreB.reduce((a,b)=>a+b,0);
+  const date = new Date(game.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  document.getElementById('boxscoreContent').innerHTML = `
+    <div class="card">
+      <div class="text-sm" style="margin-bottom:8px;">${date} · ${game.status==='final'?'Final':game.inning ? ordinal(game.inning)+' Inning':'In Progress'}</div>
+      <div class="box-score-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="color:var(--text2);">
+              <th style="text-align:left;padding:6px;min-width:80px;">Team</th>
+              ${[1,2,3,4,5,6,7,8,9].map(i=>`<th style="text-align:center;padding:6px;min-width:28px;">${i}</th>`).join('')}
+              <th style="text-align:center;padding:6px;font-weight:700;color:var(--text);">R</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:6px;font-weight:700;">${game.team_a?.captain||'Team A'}</td>
+              ${scoreA.map(s=>`<td style="text-align:center;padding:6px;color:var(--text2);">${s||0}</td>`).join('')}
+              <td style="text-align:center;padding:6px;font-weight:700;color:var(--accent);font-size:15px;">${totalA}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px;font-weight:700;">${game.team_b?.captain||'Team B'}</td>
+              ${scoreB.map(s=>`<td style="text-align:center;padding:6px;color:var(--text2);">${s||0}</td>`).join('')}
+              <td style="text-align:center;padding:6px;font-weight:700;color:var(--accent);font-size:15px;">${totalB}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:8px;">${game.team_a?.captain||'Team A'}</div>
+    ${renderTeamBoxScore(game, 'A')}
+    <div class="section-title" style="margin-top:8px;">${game.team_b?.captain||'Team B'}</div>
+    ${renderTeamBoxScore(game, 'B')}
+  `;
+}
+
+function renderTeamBoxScore(game, team) {
+  const teamData = team==='A'?game.team_a:game.team_b;
+  if (!teamData?.players) return '<div class="text-sm">No data</div>';
+  return `
+    <div class="card">
+      <div class="box-score-wrap">
+        <table class="stats-table">
+          <thead><tr>
+            <th style="text-align:left;">Player</th>
+            <th>AB</th><th>H</th><th>2B</th><th>3B</th><th>HR</th><th>RBI</th><th>R</th><th>SB</th><th>K</th><th>QAB</th>
+          </tr></thead>
+          <tbody>
+            ${teamData.players.map(tp => {
+              const p = allPlayers.find(pl=>pl.id===tp.id)||tp;
+              const s = p.stats||{};
+              const ab=s.ab||0, h=s.h||0;
+              const avg = ab>0?(h/ab).toFixed(3).replace(/^0/,''):'.000';
+              return `<tr>
+                <td>${p.name}</td>
+                <td>${ab}</td><td>${h}</td>
+                <td>${s.doubles||0}</td><td>${s.triples||0}</td>
+                <td class="highlight">${s.hr||0}</td>
+                <td>${s.rbi||0}</td><td>${s.runs||0}</td>
+                <td>${s.sb||0}</td><td>${s.k||0}</td><td>${s.qab||0}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// NATIONAL ANTHEM
+// ============================================================
+function openAnthem() {
+  // Build stars
+  const canton = document.getElementById('flagCanton');
+  canton.innerHTML = Array(50).fill('<span class="star">★</span>').join('');
+  document.getElementById('anthem-screen').classList.add('active');
+}
+
+function closeAnthem() {
+  document.getElementById('anthem-screen').classList.remove('active');
+  const audio = document.getElementById('anthemAudio');
+  if (audio) { audio.pause(); audio.remove(); }
+  document.getElementById('playAnthemBtn').textContent = '▶ Play Anthem';
+}
+
+function playAnthem() {
+  const btn = document.getElementById('playAnthemBtn');
+  let audio = document.getElementById('anthemAudio');
+  if (audio) {
+    audio.pause(); audio.remove();
+    btn.textContent = '▶ Play Anthem';
+    return;
+  }
+  // Use a free public domain anthem
+  audio = new Audio('https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3e/Star_Spangled_Banner_instrumental.ogg/Star_Spangled_Banner_instrumental.ogg.mp3');
+  audio.id = 'anthemAudio';
+  document.body.appendChild(audio);
+  audio.play().then(()=>{
+    btn.textContent = '⏹ Stop';
+  }).catch(()=>{
+    showToast('Could not play audio. Check browser permissions.');
+  });
+  audio.onended = () => { btn.textContent = '▶ Play Anthem'; audio.remove(); };
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', async () => {
+  // Fix: store first batting team when game starts
+  const origStartGame = startGame;
+
+  await initDB();
+});
+
+// Override startGame to store first_batting_team
+const _origStartGame = startGame;
+startGame = async function() {
+  const topTeam = setupData.teamA.batFirst ? 'A' : 'B';
+  const gs = {
+    league_id: currentLeague.id,
+    status: 'live',
+    created_at: new Date().toISOString(),
+    first_batting_team: topTeam,
+    team_a: {
+      captain: setupData.teamA.captain.name,
+      captain_id: setupData.teamA.captain.id,
+      players: setupData.teamA.players.map(p=>({id:p.id,name:p.name})),
+      batting_order: setupData.teamA.battingOrder,
+      current_batter_idx: 0
+    },
+    team_b: {
+      captain: setupData.teamB.captain.name,
+      captain_id: setupData.teamB.captain.id,
+      players: setupData.teamB.players.map(p=>({id:p.id,name:p.name})),
+      batting_order: setupData.teamB.battingOrder,
+      current_batter_idx: 0
+    },
+    inning: 1,
+    half: 'top',
+    batting_team: topTeam,
+    outs: 0,
+    bases: [false,false,false],
+    score: { A: Array(9).fill(0), B: Array(9).fill(0) },
+    log: [],
+    undo_stack: []
+  };
+
+  const { data, error } = await sb.from('games').insert(gs).select().single();
+  if (error) { showToast('Error starting game: '+error.message); return; }
+  currentGame = data;
+  gameState = data;
+  subscribeToGame(data.id);
+  renderLiveGame();
+  showScreen('screen-live-game');
+};
+
+// Setup screen navigation
+document.querySelector('#screen-game-setup .topbar .back-btn').addEventListener ? null : null;
+window.showGameSetup = function() {
+  renderGameSetup();
+  showScreen('screen-game-setup');
+};
+
+// Fix game setup link
+document.getElementById('gameSetupContent') && renderGameSetup();
+</script>
+</body>
+</html>
